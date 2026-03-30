@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Roadmap : {{ domain.name }}</title>
+    <style>
+        .level-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 20px;
+            padding: 40px;
+        }
+        .level-row {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            width: 100%;
+            position: relative;
+        }
+        /* Ligne décorative entre les niveaux */
+        .level-row:not(:last-child)::after {
+            content: "↓";
+            position: absolute;
+            bottom: -25px;
+            font-size: 20px;
+            color: #ccc;
+        }
+        .node {
+            padding: 15px 25px;
+            border-radius: 8px;
+            border: 2px solid #3498db;
+            background: white;
+            min-width: 150px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .learned { background: #2ecc71; border-color: #27ae60; color: white; }
+        .locked { background: #f9f9f9; border-color: #ddd; color: #aaa; }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center;">Apprendre {{ domain.name }}</h1>
+    
+    <div class="level-container">
+        {% for level, subs in sorted_levels %}
+            <div class="level-row">
+                {% for sub in subs %}
+                    <div class="node {{ 'learned' if sub.is_learned else ('locked' if not sub.can_be_learned() else '') }}">
+                        <strong>{{ sub.title }}</strong>
+                        <br>
+                        <small>
+                            {% if sub.is_learned %} Maîtrisé ✓
+                            {% elif not sub.can_be_learned() %} Bloqué 🔒
+                            {% else %} Prêt ! 
+                            {% endif %}
+                        </small>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+    </div>
+</body>
+</html>
