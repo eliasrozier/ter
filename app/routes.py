@@ -1,11 +1,16 @@
-from flask import render_template, request, current_app, redirect, url_for
+from flask import render_template, request, current_app as app, redirect, url_for, flash
 from . import db
 from .models import Domain, SubDomain
-from .services.gemini_service import generate_learning_graph
+from .services.gemini_service import generate_learning_graph, generate_youtube_search_query
+from .services.youtube_service import search_youtube_videos
 
+@app.route('/dashboard')
+def dashboard():
+    # Récupère tous les domaines créés par l'utilisateur
+    domains = Domain.query.order_by(Domain.created_at.desc()).all()
+    return render_template('dashboard.html', domains=domains)
 
-
-@current_app.route('/', methods=['GET', 'POST'])
+@app.route('/', methods=['GET', 'POST'])
 def index():
     if request.method == 'POST':
         topic = request.form.get('topic')
@@ -25,7 +30,7 @@ def index():
             sub = SubDomain(
                 title=item.name,
                 domain_id=new_domain.id,
-                is_learned = False
+                is_learned=False
             )
             db.session.add(sub)
             mapping[item.id] = sub
@@ -60,7 +65,7 @@ def get_node_depth(subdomain, memo):
     return depth
 
 
-@current_app.route('/roadmap/<int:domain_id>')
+@app.route('/roadmap/<int:domain_id>')
 def view_roadmap(domain_id):
     domain = Domain.query.get_or_404(domain_id)
     memo = {}
@@ -77,18 +82,46 @@ def view_roadmap(domain_id):
     sorted_levels = sorted(levels.items())
     return render_template('roadmap.html', domain=domain, sorted_levels=sorted_levels)
 
-@current_app.route('/learn/<int:sub_id>')
+
+@app.route('/learn/<int:sub_id>')
 def learn_subdomain(sub_id):
     sub = SubDomain.query.get_or_404(sub_id)
     domain = Domain.query.get(sub.domain_id)
-    
-    # Vérification des prérequis
+
+    # 1. Sécurité : Vérifier si l'utilisateur PEUT apprendre ce sujet
     if not sub.can_be_learned() and not sub.is_learned:
-        flash(f"Bloqué ! Complétez d'abord les prérequis de '{sub.title}'.", "warning")
+        flash(f"Vous devez d'abord compléter les prérequis pour '{sub.title}'.", "warning")
         return redirect(url_for('view_roadmap', domain_id=sub.domain_id))
-    
-    # Génération de l'URL de recherche via Gemini
-    target_url = get_youtube_search_url(sub, domain.name)
-    
-    # Redirection vers YouTube dans un nouvel onglet (via le template ou direct)
-    return redirect(target_url)
+
+    # 2. Gemini génère la requête de recherche optimisée
+    search_query = generate_youtube_search_query(sub, domain.name)
+    print(f"Requête générée par Gemini : {search_query}")  # Pour debug
+
+    # 3. YouTube cherche les vidéos
+    videos = search_youtube_videos(search_query, max_results=3)
+
+    if not videos:
+        flash("Impossible de trouver des vidéos sur YouTube pour le moment. Réessayez plus tard.", "danger")
+        return redirect(url_for('view_roadmap', domain_id=sub.domain_id))
+
+    return render_template('select_video.html',
+                           sub=sub,
+                           domain=domain,
+                           videos=videos,
+                           search_query=search_query)
+
+
+@app.route('/delete-domain/<int:domain_id>', methods=['POST'])
+def delete_domain(domain_id):
+    domain = Domain.query.get_or_404(domain_id)
+    name = domain.name
+
+    try:
+        db.session.delete(domain)
+        db.session.commit()
+        flash(f"Le parcours '{name}' a été supprimé avec succès.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash("Une erreur est survenue lors de la suppression.", "danger")
+
+    return redirect(url_for('dashboard'))

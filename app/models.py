@@ -15,6 +15,15 @@ class Domain(db.Model):
     # Relation vers les sous-domaines
     sub_domains = db.relationship('SubDomain', backref='parent_domain', lazy=True, cascade="all, delete-orphan")
 
+    def get_progress(self):
+        """Calcule le pourcentage de sous-domaines appris."""
+        total = len(self.sub_domains)
+        if total == 0:
+            return 0
+        learned = sum(1 for sub in self.sub_domains if sub.is_learned)
+        return int((learned / total) * 100)
+
+
 class SubDomain(db.Model):
     """Représente une étape ou un sous-sujet spécifique."""
     id = db.Column(db.Integer, primary_key=True)

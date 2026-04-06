@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mes Parcours d'Apprentissage</title>
+    <style>
+        .card { border: 1px solid #ddd; padding: 20px; margin-bottom: 20px; border-radius: 10px; box-shadow: 2px 2px 5px #eee; }
+        .progress-bar { background: #eee; border-radius: 10px; height: 20px; width: 100%; margin: 10px 0; overflow: hidden; }
+        .progress-fill { background: #3498db; height: 100%; transition: width 0.5s; }
+        .btn { padding: 10px 20px; text-decoration: none; border-radius: 5px; color: white; background: #2ecc71; }
+    </style>
+</head>
+<body>
+    <div style="max-width: 800px; margin: 0 auto;">
+        <h1>Mes Apprentissages</h1>
+        <a href="/" style="color: #3498db;">+ Créer un nouveau parcours</a>
+        <hr>
+
+        {% for domain in domains %}
+            <div class="card">
+                <div style="display: flex; justify-content: space-between; align-items: start;">
+                    <div>
+                        <h2>{{ domain.name }}</h2>
+                        <p>{{ domain.get_progress() }}% complété</p>
+                    </div>
+
+                    <form action="{{ url_for('delete_domain', domain_id=domain.id) }}"
+                          method="POST"
+                          onsubmit="return confirm('Es-tu sûr de vouloir supprimer ce parcours ? toute ta progression sera perdue.');">
+                        <button type="submit" style="background: none; border: none; color: #e74c3c; cursor: pointer; font-size: 0.9em;">
+                            Supprimer 🗑️
+                        </button>
+                    </form>
+                </div>
+
+                <div class="progress-bar">
+                    <div class="progress-fill" style="width: {{ domain.get_progress() }}%;"></div>
+                </div>
+                <br>
+                <a href="{{ url_for('view_roadmap', domain_id=domain.id) }}" class="btn">Continuer le parcours</a>
+            </div>
+        {% else %}
+            <p>Vous n'avez pas encore commencé de parcours. <a href="/">Lancez-vous !</a></p>
+        {% endfor %}
+    </div>
+</body>
+</html>

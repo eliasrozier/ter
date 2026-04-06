@@ -8,3 +8,4 @@ class Config:
     SQLALCHEMY_DATABASE_URI = 'sqlite:///project.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+    YOUTUBE_API_KEY = os.environ.get('YOUTUBE_API_KEY')

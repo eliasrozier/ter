@@ -45,16 +45,25 @@
         {% for level, subs in sorted_levels %}
             <div class="level-row">
                 {% for sub in subs %}
+                    {# Si le sujet est prêt ou déjà appris, on le rend cliquable VERS LA PAGE VIDÉO #}
+                    {% if sub.can_be_learned() or sub.is_learned %}
+                        <a href="{{ url_for('learn_subdomain', sub_id=sub.id) }}" style="text-decoration: none; color: inherit;">
+                    {% endif %}
+
                     <div class="node {{ 'learned' if sub.is_learned else ('locked' if not sub.can_be_learned() else '') }}">
                         <strong>{{ sub.title }}</strong>
                         <br>
                         <small>
                             {% if sub.is_learned %} Maîtrisé ✓
                             {% elif not sub.can_be_learned() %} Bloqué 🔒
-                            {% else %} Prêt ! 
+                            {% else %} Commencer ! ▶
                             {% endif %}
                         </small>
                     </div>
+
+                    {% if sub.can_be_learned() or sub.is_learned %}
+                        </a>
+                    {% endif %}
                 {% endfor %}
             </div>
         {% endfor %}
