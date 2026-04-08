@@ -53,7 +53,7 @@
                     <div class="node {{ 'learned' if sub.is_learned else ('locked' if not sub.can_be_learned() else '') }}">
                         <strong>{{ sub.title }}</strong>
                         <br>
-                        <small>
+                        <small>²
                             {% if sub.is_learned %} Maîtrisé ✓
                             {% elif not sub.can_be_learned() %} Bloqué 🔒
                             {% else %} Commencer ! ▶

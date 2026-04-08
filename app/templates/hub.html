@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mon Hub d'Apprentissage</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div id="loader-overlay">
+    <div class="spinner"></div>
+    <div class="loading-text" id="dynamic-text">Gemini analyse votre demande...</div>
+    <p style="color: #7f8c8d; margin-top: 10px;">Préparation de votre roadmap personnalisée</p>
+</div>
+
+<div class="container">
+    <header style="margin-bottom: 30px;">
+        <h1 style="font-size: 2.5em; margin-bottom: 5px;">🚀 Mon Hub d'Apprentissage</h1>
+        <p style="color: #7f8c8d; margin-top: 0;">Gérez vos connaissances et explorez de nouveaux horizons.</p>
+    </header>
+
+    <section class="creation-section">
+        <h2>Que souhaitez-vous apprendre ?</h2>
+        <form action="{{ url_for('handle_generation') }}" method="POST" class="search-box" id="gen-form">
+            <input type="text" name="topic" placeholder="ex: Le développement Web, l'astronomie, le piano..." required>
+            <button type="submit" class="btn-create">Générer le parcours</button>
+        </form>
+    </section>
+
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+        <h3 style="margin: 0;">Mes parcours en cours</h3>
+        <span style="background: #ddd; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold;">
+            {{ domains|length }} PARCOURS
+        </span>
+    </div>
+
+    <div class="grid">
+        {% for domain in domains %}
+            <div class="card">
+                <div class="card-header">
+                    <h3 style="margin: 0; color: var(--dark);">{{ domain.name }}</h3>
+                    <form action="{{ url_for('delete_domain', domain_id=domain.id) }}" method="POST"
+                          onsubmit="return confirm('Supprimer définitivement ce parcours ?');">
+                        <button type="submit" class="btn-delete">Supprimer</button>
+                    </form>
+                </div>
+
+                <div class="progress-container">
+                    <div class="progress-bar" style="width: {{ domain.get_progress() }}%;"></div>
+                </div>
+
+                <div style="font-size: 14px; font-weight: 500;">
+                    Progression : <span style="color: var(--success);">{{ domain.get_progress() }}%</span>
+                </div>
+
+                <div class="actions">
+                    <a href="{{ url_for('view_roadmap', domain_id=domain.id) }}" class="btn-continue">
+                        Continuer l'apprentissage →
+                    </a>
+                </div>
+            </div>
+        {% else %}
+            <div class="empty-state">
+                <div style="font-size: 50px; margin-bottom: 15px;">📚</div>
+                <p>Aucun parcours pour le moment. Entrez un sujet ci-dessus pour que l'IA vous guide !</p>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+    const form = document.getElementById('gen-form');
+    const overlay = document.getElementById('loader-overlay');
+    const textElement = document.getElementById('dynamic-text');
+
+    const messages = [
+        "Gemini analyse votre demande...",
+        "Structuration des concepts clés...",
+        "Calcul des dépendances logiques...",
+        "Organisation des prérequis...",
+        "Génération de votre arbre d'apprentissage...",
+        "Presque fini, nous peaufinons les détails..."
+    ];
+
+    form.addEventListener('submit', function() {
+        // Afficher l'overlay
+        overlay.style.display = 'flex';
+
+        // Changer le texte toutes les 2.5 secondes
+        let i = 0;
+        setInterval(() => {
+            i = (i + 1) % messages.length;
+            textElement.innerText = messages[i];
+        }, 2500);
+    });
+
+    // Sécurité pour le bouton "Précédent" du navigateur
+    window.onpageshow = function(event) {
+        if (event.persisted) {
+            overlay.style.display = 'none';
+        }
+    };
+</script>
+
+</body>
+</html>

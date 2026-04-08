@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from . import db
 
 # Table d'association pour gérer la relation "Plusieurs-à-Plusieurs" des prérequis
@@ -11,6 +13,7 @@ class Domain(db.Model):
     """Regroupe un domaine d'apprentissage (ex: Photographie, Python)."""
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False, unique=True)
+    created_at = db.Column(db.DateTime, default=datetime.now())
     
     # Relation vers les sous-domaines
     sub_domains = db.relationship('SubDomain', backref='parent_domain', lazy=True, cascade="all, delete-orphan")
@@ -43,3 +46,6 @@ class SubDomain(db.Model):
     def can_be_learned(self):
         """Vérifie si tous les prérequis sont marqués comme 'appris'."""
         return all(pre.is_learned for pre in self.depends_on)
+
+class Video(db.Model):
+    id = db.Column(db.Integer, primary_key=True)

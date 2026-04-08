@@ -1,7 +1,7 @@
 from flask import render_template, request, current_app as app, redirect, url_for, flash
 from . import db
 from .models import Domain, SubDomain
-from .services.gemini_service import generate_learning_graph, generate_youtube_search_query
+from .services.gemini_service import generate_learning_graph, generate_youtube_search_query, select_best_video
 from .services.youtube_service import search_youtube_videos
 
 @app.route('/dashboard')
@@ -12,43 +12,9 @@ def dashboard():
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    if request.method == 'POST':
-        topic = request.form.get('topic')
-        
-        # 1. Appel à l'API Gemini
-        data = generate_learning_graph(topic)
-        
-        # 2. Enregistrement du Domaine principal
-        new_domain = Domain(name=data.main_subject)
-        db.session.add(new_domain)
-        db.session.flush() # On commit pour avoir l'ID du domaine
-        
-        mapping = {}
-
-        # 3. Enregistrement des sous-domaines (marqués non appris par défaut)
-        for item in data.items:
-            sub = SubDomain(
-                title=item.name,
-                domain_id=new_domain.id,
-                is_learned=False
-            )
-            db.session.add(sub)
-            mapping[item.id] = sub
-        
-        db.session.flush()
-
-        for item in data.items:
-            current = mapping[item.id]
-            for prereq in item.prerequisites:
-                prereq_obj = mapping.get(prereq)
-                if prereq_obj:
-                    current.depends_on.append(prereq_obj)
-        
-        db.session.commit()
-
-        return redirect(url_for('view_roadmap', domain_id=new_domain.id))
-
-    return render_template('index.html')
+    # On récupère tous les parcours, du plus récent au plus ancien
+    domains = Domain.query.order_by(Domain.created_at.desc()).all()
+    return render_template('hub.html', domains=domains)
 
 
 def get_node_depth(subdomain, memo):
@@ -98,7 +64,13 @@ def learn_subdomain(sub_id):
     print(f"Requête générée par Gemini : {search_query}")  # Pour debug
 
     # 3. YouTube cherche les vidéos
-    videos = search_youtube_videos(search_query, max_results=3)
+    videos = search_youtube_videos(search_query, max_results=10)
+    candidate_videos = {}
+    for i, v in enumerate(videos.values()):
+        candidate_videos[i] = v
+    recommandation = select_best_video(domain, sub, None, candidate_videos).elements
+    bests_videos = []
+
 
     if not videos:
         flash("Impossible de trouver des vidéos sur YouTube pour le moment. Réessayez plus tard.", "danger")
@@ -109,6 +81,51 @@ def learn_subdomain(sub_id):
                            domain=domain,
                            videos=videos,
                            search_query=search_query)
+
+
+@app.route('/generate', methods=['POST'])
+def handle_generation():
+    topic = request.form.get('topic')
+
+    # 1. Appel à Gemini pour créer l'arbre
+    data = generate_learning_graph(topic)
+
+    if data == "SERVICE_BUSY":
+        flash("Les serveurs de l'IA sont actuellement saturés. Réessayez dans quelques secondes !", "warning")
+        return redirect(url_for('index'))
+
+    if data == "ERROR":
+        flash("Une erreur est survenue lors de la génération. Vérifiez votre connexion.", "danger")
+        return redirect(url_for('index'))
+
+    # 2. Logique d'insertion SQL (qu'on a vue ensemble)
+    new_domain = Domain(name=data.main_subject)
+    db.session.add(new_domain)
+    db.session.flush()
+    mapping = {}
+
+    # 3. Enregistrement des sous-domaines (marqués non appris par défaut)
+    for item in data.items:
+        sub = SubDomain(
+            title=item.name,
+            domain_id=new_domain.id,
+            is_learned=False
+        )
+        db.session.add(sub)
+        mapping[item.id] = sub
+
+    db.session.flush()
+
+    for item in data.items:
+        current = mapping[item.id]
+        for prereq in item.prerequisites:
+            prereq_obj = mapping.get(prereq)
+            if prereq_obj:
+                current.depends_on.append(prereq_obj)
+
+    db.session.commit()
+
+    return redirect(url_for('view_roadmap', domain_id=new_domain.id))
 
 
 @app.route('/delete-domain/<int:domain_id>', methods=['POST'])
