@@ -61,25 +61,39 @@ def learn_subdomain(sub_id):
 
     # 2. Gemini génère la requête de recherche optimisée
     search_query = generate_youtube_search_query(sub, domain.name)
+    if search_query == "ERROR":
+        flash("Gemini a actuellement beaucoup de demande. Reesayez plus tard", "danger")
+        return redirect(url_for('view_roadmap', domain_id=sub.domain_id))
     print(f"Requête générée par Gemini : {search_query}")  # Pour debug
 
     # 3. YouTube cherche les vidéos
     videos = search_youtube_videos(search_query, max_results=10)
-    candidate_videos = {}
-    for i, v in enumerate(videos.values()):
-        candidate_videos[i] = v
-    recommandation = select_best_video(domain, sub, None, candidate_videos).elements
-    bests_videos = []
-
-
+    print("videos trouvées: ", videos)
     if not videos:
         flash("Impossible de trouver des vidéos sur YouTube pour le moment. Réessayez plus tard.", "danger")
         return redirect(url_for('view_roadmap', domain_id=sub.domain_id))
 
+    candidate_videos = {}
+    for v in videos:
+        candidate_videos[v["id"]] = v
+
+    recommandation = select_best_video(domain, sub, None, candidate_videos)
+    print("recommandation: ", recommandation)
+    if recommandation == "SERVICE_BUSY":
+        flash("Impossible de trouver des vidéos sur YouTube pour le moment. Réessayez plus tard.", "danger")
+        return redirect(url_for('view_roadmap', domain_id=sub.domain_id))
+
+    bests_videos = []
+    for rec in recommandation.elements:
+        tmp = candidate_videos[rec.id]
+        tmp['description'] = rec.description
+        tmp['tags'] = rec.tags
+        bests_videos.append(tmp)
+
     return render_template('select_video.html',
                            sub=sub,
                            domain=domain,
-                           videos=videos,
+                           videos=bests_videos,
                            search_query=search_query)
 
 
@@ -142,3 +156,7 @@ def delete_domain(domain_id):
         flash("Une erreur est survenue lors de la suppression.", "danger")
 
     return redirect(url_for('dashboard'))
+
+@app.route('/video/<video_id>')
+def show_video(video_id):
+    return render_template('video_display.html', video_id=video_id)

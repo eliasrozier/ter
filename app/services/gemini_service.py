@@ -15,22 +15,23 @@ class Tree(BaseModel):
     main_subject: str = Field(description="name of the subject")
     items: List[Item] = Field("subsubjects of the subject")
 
-class MAQQuestion(BaseModel):
+class QuestionScheme(BaseModel):
     input: str = Field(description="The question itself")
-    possibleAnswers: list[str] = Field(description="list of the different possibility of answers")
+    type: str = Field(description="mcq or open")
     realAnswer: str = Field(description="the real answer")
+    options: List[str]
+    explanation: str = Field(description="why it is the real answer")
 
-class OpenQuestion(BaseModel):
-    input: str = Field(description="The question itself")
-    realAnswer: str = Field(description="the real answer")
+class QuizScheme(BaseModel):
+    questions: List[QuestionScheme]
 
 class VideoAnalysis(BaseModel):
     id: str = Field(description="key of the video")
     description: str = Field(description="courte description de pourquoi c'est la meilleure video")
-    tags: list[str] = Field(description='liste de tags concernant la video')
+    tags: List[str] = Field(description='liste de tags concernant la video')
 
 class VideoResult(BaseModel):
-    elements: list[VideoAnalysis]
+    elements: List[VideoAnalysis]
 
 
 def generate_learning_graph(topic):
@@ -97,13 +98,13 @@ def generate_youtube_search_query(subdomain, domain_name):
         return "ERROR"
 
 
-def select_best_video(domain, subdomain, user_profile, candidate_videos):
+def select_best_video(domain: str, subdomain: str, user_profile, candidate_videos) -> VideoResult | str:
     ranking_prompt = f"""
     Contexte d'apprentissage: {get_context(domain, subdomain)}
     Profil de l'élève: {user_profile}
     Vidéos disponibles: {candidate_videos}
     
-    En tant qu'expert en pédagogie, sélectionne les 3 meilleures vidéos parmis les videos données.
+    En tant qu'expert en pédagogie, sélectionne les 3 meilleures vidéos parmis les videos données afin qu'il choisisse parmi celles-ci.
     pour cet élève afin de combler ses lacunes sans répéter ce qu'il sait déjà. Essaie de prendre en compte la durée de la video et le fait que plus la video sera longue et moins l'élève sera attentif sur toute la durée
     Pour chacune des 3 videos, renvoie moi la clé du dictionnaire correspondant à la video, un court text expliquant ton choix et une liste de tags caracterisant la video.
     """
@@ -112,7 +113,7 @@ def select_best_video(domain, subdomain, user_profile, candidate_videos):
     try:
         client = genai.Client(api_key=current_app.config['GEMINI_API_KEY'])
         response = client.models.generate_content(
-            model="gemini-3.0-flash",
+            model="gemini-2.5-flash",
             contents=ranking_prompt,
             config={
                 "response_mime_type": "application/json",
