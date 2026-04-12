@@ -12,20 +12,21 @@ profil utilisateur:
   - [ ] question QCM
     - [ ] generation par gemini
     - [X] stockage en bdd
-- [ ] redirection video -> quiz
+- [X] redirection video -> quiz
 - [ ] analyse des resultats
 - [ ] sauvegarde de progression
   - [ ] reprise de sauvegarde
     - [X] implementation
     - [ ] test
-  - [ ] ajout des etapes de sauvegarde
-    - [ ] apres selection
-    - [ ] apres video
-    - [ ] apres quiz
-- [ ] gestion erreur threading
-  - [ ] implementation
-  - [ ] test
+  - [X] ajout des etapes de sauvegarde
+    - [X] apres selection
+    - [X] apres video
+    - [X] apres quiz
+  - [ ] stockage des resultats API
 
 
-Je me suis arreté à phase de test preliminaires
-debut de la fonction de submit de quiz
+## navigation
+- quiz -> quiz_results: submit_quiz
+- quiz_results -> video_select: go_select
+- video_select -> video_display: show_video
+- video_display -> quiz: 

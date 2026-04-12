@@ -9,6 +9,7 @@
         .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #eee; padding-bottom: 20px; }
         .back-link { display: inline-block; margin-bottom: 20px; text-decoration: none; color: #3498db; }
 
+        /* Styles des cartes vidéos */
         .video-card {
             display: flex;
             background: white;
@@ -19,10 +20,8 @@
             transition: transform 0.2s;
         }
         .video-card:hover { transform: translateY(-3px); }
-
         .video-thumbnail { width: 240px; height: 180px; object-fit: cover; }
-
-        .video-content { padding: 20px; display: flex; flex-direction: column; justify-content: space-between; }
+        .video-content { padding: 20px; display: flex; flex-direction: column; justify-content: space-between; flex: 1; }
         .video-title { font-size: 1.2em; font-weight: bold; margin: 0 0 10px 0; color: #333; }
         .video-channel { font-size: 0.9em; color: #7f8c8d; margin-bottom: 10px; }
         .video-description { font-size: 0.9em; color: #7f8c8d; margin-bottom: 15px; flex-grow: 1; }
@@ -30,38 +29,109 @@
         .btn-watch {
             display: inline-block;
             padding: 10px 20px;
-            background-color: #e74c3c; # Rouge YouTube
+            background-color: #e74c3c;
             color: white;
             text-decoration: none;
             border-radius: 4px;
             font-weight: bold;
             text-align: center;
         }
+
+        /* Styles de l'écran de chargement */
+        .loading-state {
+            text-align: center;
+            background: white;
+            padding: 50px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        .pulse { animation: pulse-text 2s infinite; color: #7f8c8d; }
+        @keyframes pulse-text {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <a href="{{ url_for('view_roadmap', domain_id=domain.id) }}" class="back-link">← Retour à la Roadmap</a>
+    <a href="{{ url_for('dashboard') }}" class="back-link">← Retour à la Roadmap</a>
 
     <div class="header">
         <h1>Sujet global : {{ domain.name }}</h1>
     </div>
 
-    {% for i in [1, 2, 3] %}
-        {% set video = selection["video_" ~ i] %}
-        <div class="video-card">
-            <img src="{{ video.thumbnail_url }}" alt="Miniature de {{ video.title }}" class="video-thumbnail">
-            <div class="video-content">
-                <div>
-                    <h2 class="video-title">{{ video.title | safe }}</h2>
-                    <p class="video-channel">Par : {{ video.channel }}</p>
-                    <p class="video-description">{{ selection["video_" ~ i ~ "_reason"]}}</p>
+    {% if selection.status == 'READY' %}
+        {# --- AFFICHAGE DE LA SÉLECTION PRÊTE --- #}
+        {% for i in [1, 2, 3] %}
+            {# Accès dynamique aux objets video_1, video_2, etc #}
+            {% set video = selection["video_" ~ i] %}
+            {% if video %}
+                <div class="video-card">
+                    <img src="{{ video.thumbnail_url }}" alt="Miniature" class="video-thumbnail">
+                    <div class="video-content">
+                        <div>
+                            <h2 class="video-title">{{ video.title | safe }}</h2>
+                            <p class="video-channel">Par : {{ video.channel }}</p>
+                            <p class="video-description">
+                                <strong>Pourquoi cette vidéo :</strong><br>
+                                {{ selection["video_" ~ i ~ "_reason"] }}
+                            </p>
+                        </div>
+                        <a href="{{ url_for('show_video', video_id=video.id, domain_id=domain.id) }}" class="btn-watch">Choisir celle-ci</a>
+                    </div>
                 </div>
-                <a href="{{ url_for('show_video', video_id=video.id, domain_id=domain.id) }}" target="_blank" class="btn-watch">Choisir celle-ci</a>
-            </div>
+            {% endif %}
+        {% endfor %}
+
+    {% else %}
+        {# --- ÉCRAN D'ATTENTE (POLLING) --- #}
+        <div class="loading-state">
+            <div class="spinner"></div>
+            <h3>Analyse de tes résultats...</h3>
+            <p class="pulse">Gemini sélectionne les meilleures vidéos pour combler tes lacunes.</p>
         </div>
-    {% endfor %}
+
+        <script>
+            function checkStatus() {
+                // On appelle ta route API de statut
+                fetch("/api/selection_status/{{ selection.id }}")
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.status === 'READY') {
+                            // Si c'est prêt, on rafraîchit la page pour afficher les vidéos
+                            window.location.reload();
+                        } else if (data.status === 'PENDING') {
+                            // Sinon on réessaie dans 2 secondes
+                            setTimeout(checkStatus, 2000);
+                        } else {
+                            console.log("test");
+                            window.location.href= '/dashboard';
+                        }
+                    })
+                    .catch(err => {
+                        console.error("Erreur polling:", err);
+                        setTimeout(checkStatus, 4000);
+                    });
+            }
+            // Lancer le premier check
+            checkStatus();
+        </script>
+    {% endif %}
 </div>
 
 </body>

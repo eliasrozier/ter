@@ -1,11 +1,11 @@
 import threading
 from flask import render_template, request, current_app as app, redirect, url_for, flash
 from . import db
-from .models import Domain, SubDomain, Quiz, DomainStep, VideoSelection, Video, Answer
-from .services.gemini_service import generate_learning_graph, generate_youtube_search_query, select_best_video
+from .models import Domain, SubDomain, Quiz, DomainStep, Videoselection, Video, Answer, Seenvideo
+from .services.gemini_service import generate_learning_graph
 from .services.quiz_logic import generate_quiz
 from .services.user_logic import add_step
-from .services.video_logic import make_video_selection
+from .services.video_logic import update_user_profile
 
 @app.route('/dashboard')
 def dashboard():
@@ -18,7 +18,6 @@ def index():
     # On récupère tous les parcours, du plus récent au plus ancien
     domains = Domain.query.order_by(Domain.created_at.desc()).all()
     return render_template('hub.html', domains=domains)
-
 
 def get_node_depth(subdomain, memo):
     if subdomain.id in memo:
@@ -33,38 +32,19 @@ def get_node_depth(subdomain, memo):
     memo[subdomain.id] = depth
     return depth
 
-
-@app.route('/domain?<int:domain_id>/roadmap')
-def view_roadmap(domain_id):
-    domain = Domain.query.get_or_404(domain_id)
-    memo = {}
-    
-    # On crée un dictionnaire : { niveau: [liste_de_sous_domaines] }
-    levels = {}
-    for sub in domain.sub_domains:
-        d = get_node_depth(sub, memo)
-        if d not in levels:
-            levels[d] = []
-        levels[d].append(sub)
-    
-    # On trie les niveaux pour l'affichage (0, 1, 2...)
-    sorted_levels = sorted(levels.items())
-    return render_template('roadmap.html', domain=domain, sorted_levels=sorted_levels)
-
-
-@app.route('/domain?<int:domain_id>/learn/<int:sub_id>')
-def learn_subdomain(domain_id, sub_id):
-    sub = SubDomain.query.get_or_404(sub_id)
-    domain = Domain.query.get(domain_id)
-    selection_id = make_video_selection(sub, domain)
-    return redirect(url_for('select_video', domain_id=domain_id, selection_id=selection_id))
-
 @app.route("/domain?<int:domain_id>/video/selection/<int:selection_id>")
 def select_video(domain_id, selection_id):
-    selection: VideoSelection = VideoSelection.query.get_or_404(selection_id)
+    print("bonjour")
+    selection: Videoselection = Videoselection.query.get(selection_id)
     domain = Domain.query.get_or_404(domain_id)
     add_step(domain_id, "VIDEO_SELECT", selection_id)
     return render_template('select_video.html', selection=selection, domain=domain)
+
+@app.route('/api/selection_status/<int:selection_id>')
+def check_selection_status(selection_id):
+    selection = Videoselection.query.get_or_404(selection_id)
+    # On renvoie le statut au format JSON
+    return {"status": selection.status}
 
 
 @app.route('/generate', methods=['POST'])
@@ -74,10 +54,6 @@ def handle_generation():
     # 1. Appel à Gemini pour créer l'arbre
     data = generate_learning_graph(topic)
 
-    if data == "SERVICE_BUSY":
-        flash("Les serveurs de l'IA sont actuellement saturés. Réessayez dans quelques secondes !", "warning")
-        return redirect(url_for('index'))
-
     if data == "ERROR":
         flash("Une erreur est survenue lors de la génération. Vérifiez votre connexion.", "danger")
         return redirect(url_for('index'))
@@ -86,30 +62,33 @@ def handle_generation():
     new_domain = Domain(name=data.main_subject)
     db.session.add(new_domain)
     db.session.flush()
-    mapping = {}
 
     # 3. Enregistrement des sous-domaines (marqués non appris par défaut)
     for item in data.items:
         sub = SubDomain(
             title=item.name,
-            domain_id=new_domain.id,
-            is_learned=False
+            domain_id=new_domain.id
         )
         db.session.add(sub)
-        mapping[item.id] = sub
 
     db.session.flush()
 
-    for item in data.items:
-        current = mapping[item.id]
-        for prereq in item.prerequisites:
-            prereq_obj = mapping.get(prereq)
-            if prereq_obj:
-                current.depends_on.append(prereq_obj)
-
     db.session.commit()
 
-    return redirect(url_for('view_roadmap', domain_id=new_domain.id))
+    new_selection = Videoselection(
+        domain_id=new_domain.id
+    )
+    db.session.add(new_selection)
+    db.session.commit()
+
+    app_instance = app.app_context().app
+    thread = threading.Thread(
+        target=update_user_profile,
+        args=(new_domain.id, new_selection.id, app_instance)
+    )
+    thread.start()
+
+    return redirect(url_for('select_video', domain_id=new_domain.id, selection_id=new_selection.id))
 
 
 @app.route('/domain?<int:domain_id>/delete-domain', methods=['POST'])
@@ -135,17 +114,26 @@ def show_video(domain_id, video_id):
     if not quiz:
         quiz = Quiz(video_id=video_id, domain_id=domain_id)
         db.session.add(quiz)
-        db.session.flush()
+        db.session.commit()
         app_instance = app.app_context().app
 
         thread = threading.Thread(
             target=generate_quiz,
-            args=(video_id, quiz.id, app_instance)
+            args=(video_id, quiz.id, domain_id, app_instance)
         )
         thread.start()
     add_step(domain_id, "VIDEO_WATCH", video_id)
 
-    return render_template('video_display.html', video_id=video.youtube_id, quiz_id=quiz.id, domain_id=domain_id)
+    return render_template('video_display.html', video_id=video.id, quiz_id=quiz.id, domain_id=domain_id)
+
+@app.route("/api/domain/<int:domain_id>/video_seen/<int:video_id>")
+def video_seen(domain_id: int, video_id: int) -> None:
+    video_seen = Seenvideo(
+        video_id=video_id,
+        domain_id=domain_id
+    )
+    db.session.add(video_seen)
+    db.session.commit()
 
 @app.route("/domain?<int:domain_id>/quiz/<int:quiz_id>")
 def view_quiz(domain_id, quiz_id):
@@ -174,10 +162,27 @@ def submit_quiz(domain_id, quiz_id):
         )
         db.session.add(new_answer)
     add_step(domain_id, 'QUIZ_RESULTS', quiz_id)
-    return redirect(url_for('view_quiz_results', domain_id=domain_id, quiz_id=quiz_id))
+
+    new_selection = Videoselection(domain_id=domain_id)
+    db.session.add(new_selection)
+    db.session.flush()
+    quiz.selection_id = new_selection.id
+    db.session.commit()
+    app_instance = app.app_context().app
+    thread = threading.Thread(
+        target=update_user_profile,
+        args=(domain_id, new_selection.id, app_instance)
+    )
+    thread.start()
+    return redirect(url_for(
+        'view_quiz_results',
+        domain_id=domain_id,
+        quiz_id=quiz_id
+    ))
 
 @app.route("/domain?<int:domain_id>/quiz/<int:quiz_id>/results")
 def view_quiz_results(domain_id, quiz_id):
+    quiz: Quiz = Quiz.query.get(quiz_id)
     user_answers = Answer.query.filter_by(
         quiz_id=quiz_id,
         domain_id=domain_id
@@ -192,28 +197,30 @@ def view_quiz_results(domain_id, quiz_id):
                            answers=user_answers,
                            score=score_percent,
                            correct=correct,
-                           total=total)
+                           total=total,
+                           domain_id=domain_id,
+                           selection_id=quiz.next_selection.id)
 
 
 @app.route("/domain?<int:domain_id>")
 @app.route("/domain?<int:domain_id>/resume")
 def resume(domain_id):
     step = DomainStep.query.filter_by(domain_id=domain_id) \
-        .order_by(DomainStep.step_number.desc()).first()
+        .order_by(DomainStep.created_at.desc()).first()
     if not step:
         return redirect(url_for('dashboard'))
 
     match step.step_type:
         case 'VIDEO_WATCH':
-            redirect(url_for('show_video', video_id=step.resource_id, domain_id=domain_id))
+            return redirect(url_for('show_video', video_id=step.resource_id, domain_id=domain_id))
         case 'VIDEO_SELECT':
-            redirect(url_for('select_video', selection_id=step.resource_id, domain_id=domain_id))
+            return redirect(url_for('select_video', selection_id=step.resource_id, domain_id=domain_id))
         case 'CONGRATS':
             pass  # TODO
         case 'QUIZ':
-            redirect(url_for('view_quiz', quiz_id=step.resource_id, domain_id=domain_id))
+            return redirect(url_for('view_quiz', quiz_id=step.resource_id, domain_id=domain_id))
         case 'QUIZ_RESULTS':
-            redirect(url_for('view_quiz_results', quiz_id=step.resource_id, domain_id=domain_id))
+            return redirect(url_for('view_quiz_results', quiz_id=step.resource_id, domain_id=domain_id))
         case _:
             flash(f"Soucis dans la base de donnée. l'etape {step.step_type} n'est pas definie", "danger")
-            redirect(url_for("dashboard"))
+            return redirect(url_for("dashboard"))

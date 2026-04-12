@@ -8,12 +8,6 @@
 </head>
 <body>
 
-<div id="loader-overlay">
-    <div class="spinner"></div>
-    <div class="loading-text" id="dynamic-text">Gemini analyse votre demande...</div>
-    <p style="color: #7f8c8d; margin-top: 10px;">Préparation de votre roadmap personnalisée</p>
-</div>
-
 <div class="container">
     <header style="margin-bottom: 30px;">
         <h1 style="font-size: 2.5em; margin-bottom: 5px;">🚀 Mon Hub d'Apprentissage</h1>
@@ -55,7 +49,7 @@
                 </div>
 
                 <div class="actions">
-                    <a href="{{ url_for('view_roadmap', domain_id=domain.id) }}" class="btn-continue">
+                    <a href="{{ url_for('resume', domain_id=domain.id) }}" class="btn-continue">
                         Continuer l'apprentissage →
                     </a>
                 </div>
@@ -68,40 +62,6 @@
         {% endfor %}
     </div>
 </div>
-
-<script>
-    const form = document.getElementById('gen-form');
-    const overlay = document.getElementById('loader-overlay');
-    const textElement = document.getElementById('dynamic-text');
-
-    const messages = [
-        "Gemini analyse votre demande...",
-        "Structuration des concepts clés...",
-        "Calcul des dépendances logiques...",
-        "Organisation des prérequis...",
-        "Génération de votre arbre d'apprentissage...",
-        "Presque fini, nous peaufinons les détails..."
-    ];
-
-    form.addEventListener('submit', function() {
-        // Afficher l'overlay
-        overlay.style.display = 'flex';
-
-        // Changer le texte toutes les 2.5 secondes
-        let i = 0;
-        setInterval(() => {
-            i = (i + 1) % messages.length;
-            textElement.innerText = messages[i];
-        }, 2500);
-    });
-
-    // Sécurité pour le bouton "Précédent" du navigateur
-    window.onpageshow = function(event) {
-        if (event.persisted) {
-            overlay.style.display = 'none';
-        }
-    };
-</script>
 
 </body>
 </html>

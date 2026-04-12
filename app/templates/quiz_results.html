@@ -62,7 +62,7 @@
             {% endfor %}
 
             <div class="text-center mt-5">
-                <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-lg px-5">Continuer le parcours</a>
+                <a href="{{ url_for('select_video', domain_id=domain_id, selection_id=selection_id) }}" class="btn btn-primary btn-lg px-5">Continuer le parcours</a>
             </div>
         </div>
     </div>

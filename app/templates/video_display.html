@@ -95,6 +95,7 @@
         // YT.PlayerState.ENDED correspond à la fin de la vidéo (0)
         if (event.data == YT.PlayerState.ENDED) {
             activateButton();
+            fetch("/api/video_seen/{{video_id}}")
         }
     }
 

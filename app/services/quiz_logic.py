@@ -1,20 +1,17 @@
 from .gemini_service import generate_questions
-from ..models import db, Question, Quiz
 from .user_logic import get_user_profile
+from ..models import db, Question, Quiz
+import json
 
-def generate_quiz(video_id, quiz_id, app_instance, _nb_try=0) -> bool:
+def generate_quiz(video_id: str, quiz_id: int, domain_id: int, app_instance) -> None:
+    print("started quiz generation")
     with app_instance.app_context():  # Important pour toucher à la DB dans un thread
-        # Simulation appel Gemini...
-        user_profile = get_user_profile()
-        generated_questions = generate_questions(video_id, user_profile)
-        if isinstance(generated_questions, str):
-            if generated_questions == "SERVICE_BUSY":
-                if _nb_try < 3:
-                    generate_quiz(video_id, quiz_id, app_instance, _nb_try+1)
-                else:
-                    return False
-            elif generated_questions == "ERROR":
-                return False
+        context = get_user_profile(domain_id)
+        context_json = json.dumps(context, indent=2, ensure_ascii=False)
+        generated_questions = generate_questions(context_json, video_id)
+        if generated_questions == "ERROR":
+            print("il a pas generé les questions")
+            return
 
         # On remplit le quiz existant
         for q in generated_questions.questions:

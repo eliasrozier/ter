@@ -36,7 +36,7 @@
                     <div class="progress-fill" style="width: {{ domain.get_progress() }}%;"></div>
                 </div>
                 <br>
-                <a href="{{ url_for('view_roadmap', domain_id=domain.id) }}" class="btn">Continuer le parcours</a>
+                <a href="{{ url_for('resume', domain_id=domain.id) }}" class="btn">Continuer le parcours</a>
             </div>
         {% else %}
             <p>Vous n'avez pas encore commencé de parcours. <a href="/">Lancez-vous !</a></p>

@@ -1,25 +1,33 @@
+import json
+
 import google.genai as genai
 from google.api_core import exceptions
 from .schemes import *
 from flask import current_app
 from typing import TypeVar, Callable, ParamSpec
+from .user_logic import get_user_profile
+from ..models import SubDomain, Domain
 
 P = ParamSpec("P")
 R = TypeVar("R")
 
-def gemini_call(func: Callable[P, R]) -> Callable[P, R | str]:
-    def new_func(*args: P.args, **kwargs: P.kwargs) -> R | str:
-        try:
-            return func(*args, **kwargs)
-        except exceptions.ServiceUnavailable:
-            print("Erreur 503 : Gemini est surchargé.")
-            return "SERVICE_BUSY"
-        except Exception as e:
-            # Autres erreurs (clé API, réseau, etc.)
-            print(f"Erreur inattendue : {e}")
-            return "ERROR"
 
-    return new_func
+def gemini_call(func: Callable[P, R]) -> Callable[P, R | str]:
+    def wrapper(*args: P.args, **kwargs: P.kwargs) -> R | str:
+        for attempt in range(4):  # 0 à 3
+            try:
+                return func(*args, **kwargs)
+            except exceptions.ServiceUnavailable:
+                if attempt == 3:
+                    break
+                print(f"Retry {attempt + 1}...")
+            except Exception as e:
+                print(f"Erreur: {repr(e)}")
+                raise e
+        return "ERROR"
+
+    return wrapper
+
 
 @gemini_call
 def generate_learning_graph(topic):
@@ -42,6 +50,7 @@ def generate_learning_graph(topic):
 
     result = Tree.model_validate_json(response.text)
     return result
+
 
 @gemini_call
 def generate_youtube_search_query(subdomain, domain_name):
@@ -70,14 +79,25 @@ def generate_youtube_search_query(subdomain, domain_name):
 
 
 @gemini_call
-def select_best_video(domain: str, subdomain: str, user_profile, candidate_videos) -> VideoResult | str:
+def select_best_video(domain_id: int, focus_subdomain: SubDomain, candidate_videos) -> VideoResult | str:
+    context = get_user_profile(domain_id)
+    json_context = json.dumps(context, indent=2, ensure_ascii=False)
+
     ranking_prompt = f"""
-    Contexte d'apprentissage: {get_context(domain, subdomain)}
-    Profil de l'élève: {user_profile}
-    Vidéos disponibles: {candidate_videos}
+    En tant qu'expert en pédagogie, sélectionne les 3 meilleures vidéos parmis les videos données afin que l'éleve choisisse parmi celles-ci.
+    selectionne les videos afin de combler ses lacunes dans le domaine {focus_subdomain.title} sans répéter ce qu'il sait déjà.
     
-    En tant qu'expert en pédagogie, sélectionne les 3 meilleures vidéos parmis les videos données afin qu'il choisisse parmi celles-ci.
-    pour cet élève afin de combler ses lacunes sans répéter ce qu'il sait déjà. Essaie de prendre en compte la durée de la video et le fait que plus la video sera longue et moins l'élève sera attentif sur toute la durée
+    voici le contexte de l'apprentissage
+    ---
+    Profil de l'élève: {json_context}
+    ---
+    
+    voici les videos disponibles
+    ---
+    Vidéos disponibles: {candidate_videos}
+    ---
+    
+    Essaie de prendre en compte la durée de la video et le fait que plus la video sera longue et moins l'élève sera attentif sur toute la durée
     Pour chacune des 3 videos, renvoie moi la clé du dictionnaire correspondant à la video, un court text expliquant ton choix et une liste de tags caracterisant la video.
     """
 
@@ -94,10 +114,19 @@ def select_best_video(domain: str, subdomain: str, user_profile, candidate_video
     result = VideoResult.model_validate_json(response.text)
     return result
 
+
 @gemini_call
-def generate_questions(video_id, user_profile) -> QuizScheme:
-    prompt = """
-    prompt pour generer les questions 
+def generate_questions(context: str, video_id: int) -> QuizScheme:
+    prompt = f"""
+    Tu es un agent superviseur de l'apprentissage d'un utilisateur.
+    Voici les informations de l'utilisateur au format JSON:
+    -----
+    {context}
+    -----
+    Genere entre 5 et 15 questions de type qcm
+    les questions doivent etre en rapport direct avec la video youtube trouvable avec cet id: {video_id}
+    utilise la transcription de la video pour trouver les questions
+    les questions doivent etre adaptées au niveau de l'éleve
     """  # TODO
     client = genai.Client(api_key=current_app.config['GEMINI_API_KEY'])
     response = client.models.generate_content(
@@ -111,7 +140,39 @@ def generate_questions(video_id, user_profile) -> QuizScheme:
     result = QuizScheme.model_validate_json(response.text)
     return result
 
-def get_context(domain, subdomain):
-    prereqs = [pre.title for pre in subdomain.depends_on]
-    context = f"Sujet global: {domain.name}. Prérequis déjà connus: {', '.join(prereqs) if prereqs else 'Aucun'}."
-    return context
+
+@gemini_call
+def analyse_quiz(domain_id: int) -> TestResult | str:
+    context = get_user_profile(domain_id)
+    json_context = json.dumps(context, indent=2, ensure_ascii=False)
+    prompt = f"""
+    Tu es un agent superviseur de l'apprentissage d'un utilisateur.
+    Voici les informations de l'utilisateur au format JSON:
+    
+    ---
+    
+    {json_context}
+    
+    ---
+    
+    considere chacun des quizz auquel l'utilisateur a repondu pour analyser sa progression
+    les id de quiz sont dans l'ordre chronologique (il a repondu aux questions du quiz 1 avant celles du quiz 2)
+    
+    renvoie moi:
+    - la progression mise à jour pour chaque domaine si c'est pertinent
+    - le sous-sujet principal sur lequel l'utilisateur devrait s'ameliorer parmi les sous-sujet en cours de progression
+    - une query youtube pour trouver les meilleures videos par rapport au sous sujet principal.
+    - n'invente PAS de nouveaux sous-domaines, ne renvoie que des informations à propos de ceux existants.
+    
+    """
+    client = genai.Client(api_key=current_app.config['GEMINI_API_KEY'])
+    response = client.models.generate_content(
+        model="gemini-2.5-flash",
+        contents=prompt,
+        config={
+            "response_mime_type": "application/json",
+            "response_json_schema": TestResult.model_json_schema()
+        }
+    )
+    result = TestResult.model_validate_json(response.text)
+    return result
