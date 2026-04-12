@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lecteur Vidéo Interactif</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f4f4f9;
+        }
+
+        .container {
+            text-align: center;
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+
+        #player {
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        #finish-btn {
+            margin-top: 20px;
+            padding: 12px 25px;
+            font-size: 16px;
+            color: white;
+            background-color: #ccc; /* Gris par défaut */
+            border: none;
+            border-radius: 5px;
+            cursor: not-allowed;
+            transition: all 0.3s ease;
+        }
+
+        #finish-btn.active {
+            background-color: #28a745; /* Vert quand actif */
+            cursor: pointer;
+            box-shadow: 0 4px 10px rgba(40, 167, 69, 0.3);
+        }
+
+        #message {
+            margin-top: 15px;
+            font-weight: bold;
+            color: #28a745;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Ma Vidéo de Formation</h2>
+
+    <div id="player"></div>
+
+    <br>
+
+    <button id="finish-btn" disabled>J'ai terminé la vidéo</button>
+    <p id="message"></p>
+</div>
+
+<script>
+    // 1. Chargement asynchrone de l'API YouTube IFrame
+    var tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    var firstScriptTag = document.getElementsByTagName('script')[0];
+    firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+    var player;
+    var finishBtn = document.getElementById('finish-btn');
+    var message = document.getElementById('message');
+
+    // 2. Cette fonction crée le lecteur après le téléchargement de l'API
+    function onYouTubeIframeAPIReady() {
+        player = new YT.Player('player', {
+            height: '360',
+            width: '640',
+            videoId: '{{video_id}}', // Remplacez par l'ID de votre vidéo
+            events: {
+                'onStateChange': onPlayerStateChange
+            }
+        });
+    }
+
+    // 3. L'API appelle cette fonction quand l'état du lecteur change
+    function onPlayerStateChange(event) {
+        // YT.PlayerState.ENDED correspond à la fin de la vidéo (0)
+        if (event.data == YT.PlayerState.ENDED) {
+            activateButton();
+        }
+    }
+
+    function activateButton() {
+        finishBtn.disabled = false;
+        finishBtn.classList.add('active');
+        finishBtn.innerText = "Valider ma progression";
+    }
+
+    // Action au clic sur le bouton
+    finishBtn.addEventListener('click', function() {
+        if (!finishBtn.disabled) {
+            message.innerText = "Félicitations ! Votre progression a été enregistrée.";
+            finishBtn.style.display = "none";
+            window.location.href = '/domain%3F{{domain_id}}/quiz/{{quiz_id}}'
+        }
+    });
+</script>
+
+</body>
+</html>

@@ -2,7 +2,7 @@ import requests
 from flask import current_app
 
 
-def search_youtube_videos(query, max_results=3):
+def search_youtube_videos(query, max_results=3) -> list[dict]:
     api_key = current_app.config['YOUTUBE_API_KEY']
     base_url = "https://www.googleapis.com/youtube/v3/search"
 
@@ -29,7 +29,6 @@ def search_youtube_videos(query, max_results=3):
             videos.append({
                 'id': video_id,
                 'title': snippet['title'],
-                'description': snippet['description'],
                 'thumbnail_url': snippet['thumbnails']['high']['url'],  # Miniature haute qualité
                 'channel_title': snippet['channelTitle'],
                 'watch_url': f"https://www.youtube.com/watch?v={video_id}"

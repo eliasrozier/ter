@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Apprendre {{ sub.title }} - Vidéos</title>
+    <title>Apprendre {{ domain.name }} - Vidéos</title>
     <style>
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; padding: 20px; }
         .container { max-width: 800px; margin: 0 auto; }
@@ -42,24 +42,23 @@
 <body>
 
 <div class="container">
-    <a href="{{ url_for('view_roadmap', domain_id=sub.domain_id) }}" class="back-link">← Retour à la Roadmap</a>
+    <a href="{{ url_for('view_roadmap', domain_id=domain.id) }}" class="back-link">← Retour à la Roadmap</a>
 
     <div class="header">
-        <h1>Ressources pour : {{ sub.title }}</h1>
-        <p>Sujet global : {{ domain.name }}</p>
-        <p><small>Requête de recherche : <em>"{{ search_query }}"</em></small></p>
+        <h1>Sujet global : {{ domain.name }}</h1>
     </div>
 
-    {% for video in videos %}
+    {% for i in [1, 2, 3] %}
+        {% set video = selection["video_" ~ i] %}
         <div class="video-card">
             <img src="{{ video.thumbnail_url }}" alt="Miniature de {{ video.title }}" class="video-thumbnail">
             <div class="video-content">
                 <div>
                     <h2 class="video-title">{{ video.title | safe }}</h2>
-                    <p class="video-channel">Par : {{ video.channel_title }}</p>
-                    <p class="video-description">{{ video.description | truncate(150) }}</p>
+                    <p class="video-channel">Par : {{ video.channel }}</p>
+                    <p class="video-description">{{ selection["video_" ~ i ~ "_reason"]}}</p>
                 </div>
-                <a href="{{ video.watch_url }}" target="_blank" class="btn-watch">Voir sur YouTube</a>
+                <a href="{{ url_for('show_video', video_id=video.id, domain_id=domain.id) }}" target="_blank" class="btn-watch">Choisir celle-ci</a>
             </div>
         </div>
     {% endfor %}
