@@ -109,6 +109,7 @@
         if (!finishBtn.disabled) {
             message.innerText = "Félicitations ! Votre progression a été enregistrée.";
             finishBtn.style.display = "none";
+            window.location.href = '/domain%3F{{domain_id}}/quiz/{{quiz_id}}'
         }
     });
 </script>

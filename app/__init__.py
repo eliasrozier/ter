@@ -16,3 +16,6 @@ def create_app():
         db.create_all() # Crée la base de données au démarrage
 
     return app
+
+
+app = create_app()

@@ -29,7 +29,6 @@ def search_youtube_videos(query, max_results=3) -> list[dict]:
             videos.append({
                 'id': video_id,
                 'title': snippet['title'],
-                'description': snippet['description'],
                 'thumbnail_url': snippet['thumbnails']['high']['url'],  # Miniature haute qualité
                 'channel_title': snippet['channelTitle'],
                 'watch_url': f"https://www.youtube.com/watch?v={video_id}"

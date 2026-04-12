@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quiz Vidéo</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen py-12 px-4">
+
+    <div class="max-w-3xl mx-auto">
+        <header class="mb-10 text-center">
+            <h1 class="text-4xl font-extrabold text-slate-900 mb-2">Quiz</h1>
+            <p class="text-slate-600">Répondez aux questions basées sur la vidéo.</p>
+        </header>
+
+        <form action="{{ url_for('submit_quiz', quiz_id=quiz.id, domain_id=domain_id) }}" method="POST" class="space-y-6">
+
+            {% for question in quiz.questions %}
+            <div class="bg-white shadow-sm border border-slate-200 rounded-xl p-6">
+                <div class="flex items-start mb-4">
+                    <span class="flex items-center justify-center bg-indigo-100 text-indigo-700 font-bold rounded-full h-8 w-8 mr-3 shrink-0">
+                        {{ loop.index }}
+                    </span>
+                    <p class="text-lg text-slate-800 font-medium pt-0.5">
+                        {{ question.question_text }}
+                    </p>
+                </div>
+
+                <div class="grid gap-3 ml-11">
+                    {# Comme 'options' est un champ JSON, Jinja le traite directement comme une liste #}
+                    {% for option in question.options %}
+                    <label class="relative flex items-center p-4 border rounded-lg cursor-pointer transition-all hover:border-indigo-300 hover:bg-indigo-50 group">
+                        <input type="radio"
+                               name="question_{{ question.id }}"
+                               value="{{ option }}"
+                               class="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500"
+                               required>
+                        <span class="ml-4 text-slate-700 group-hover:text-slate-900">{{ option }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endfor %}
+
+            <div class="pt-6">
+                <button type="submit"
+                        class="w-full bg-indigo-600 text-white py-4 px-6 rounded-xl font-bold text-lg hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-200">
+                    Valider mes réponses
+                </button>
+            </div>
+        </form>
+    </div>
+
+</body>
+</html>
