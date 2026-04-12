@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Tes Résultats</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+</head>
+<body class="bg-light">
+
+<div class="container py-5">
+    <div class="row justify-content-center mb-5">
+        <div class="col-md-6 text-center">
+            <div class="card shadow-sm border-0 p-4">
+                <h1 class="display-4 border-bottom pb-3">Score : {{ score }}%</h1>
+                <p class="lead mt-3">
+                    Tu as répondu correctement à <strong>{{ correct }}</strong> questions sur <strong>{{ total }}</strong>.
+                </p>
+                {% if score >= 80 %}
+                    <div class="alert alert-success">Bravo ! Tu maîtrises parfaitement ce sujet.</div>
+                {% elif score >= 50 %}
+                    <div class="alert alert-warning">Pas mal ! Encore un petit effort pour atteindre l'excellence.</div>
+                {% else %}
+                    <div class="alert alert-danger">C'est un peu juste. N'hésite pas à revoir la vidéo associée.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <h3 class="mb-4">Récapitulatif des réponses</h3>
+            {% for ans in answers %}
+                <div class="card mb-3 shadow-sm border-start {% if ans.success %}border-success border-4{% else %}border-danger border-4{% endif %}">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <h5 class="card-title text-muted small mb-2">Question #{{ loop.index }}</h5>
+                            {% if ans.success %}
+                                <span class="badge bg-success"><i class="bi bi-check-circle"></i> Correct</span>
+                            {% else %}
+                                <span class="badge bg-danger"><i class="bi bi-x-circle"></i> Erreur</span>
+                            {% endif %}
+                        </div>
+
+                        <p class="fw-bold mb-2">{{ ans.question.question_text }}</p>
+
+                        <div class="p-2 rounded {% if ans.success %}bg-success bg-opacity-10{% else %}bg-danger bg-opacity-10{% endif %}">
+                            <small class="text-secondary">Ta réponse :</small>
+                            <div class="{% if ans.success %}text-success{% else %}text-danger{% endif %} fw-bold">
+                                {{ ans.answer }}
+                            </div>
+                        </div>
+
+                        {% if not ans.success %}
+                            <div class="mt-2 text-success small">
+                                <i class="bi bi-info-circle"></i> La bonne réponse était : <strong>{{ ans.question.correct_answer }}</strong>
+                            </div>
+                        {% endif %}
+                        <p>{{ ans.question.explanation }}</p>
+                    </div>
+                </div>
+            {% endfor %}
+
+            <div class="text-center mt-5">
+                <a href="{{ url_for('dashboard') }}" class="btn btn-primary btn-lg px-5">Continuer le parcours</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+</body>
+</html>

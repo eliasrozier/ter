@@ -94,6 +94,7 @@ class Answer(db.Model):
     success = db.Column(db.Boolean, nullable=False)
     answer = db.Column(db.String(50), nullable=False)
     created_at = db.Column(db.DateTime, server_default=func.now())
+    question = db.relationship('Question', foreign_keys=[question_id])
 
 
 class Video(db.Model):

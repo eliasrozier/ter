@@ -52,7 +52,7 @@ def generate_youtube_search_query(subdomain, domain_name):
 
     # Construction du contexte
     prereqs = [pre.title for pre in subdomain.depends_on]
-    context = f"Sujet global : {domain_name}. Prérequis déjà connus : {', '.join(prereqs) if prereqs else 'Aucun'}."
+    context = f"Subject : {domain_name}. Progression : {', '.join(prereqs) if prereqs else 'Aucun'}."
 
     prompt = f"""
     {context}

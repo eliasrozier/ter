@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 
 class Item(BaseModel):
@@ -27,3 +27,8 @@ class VideoAnalysis(BaseModel):
 
 class VideoResult(BaseModel):
     elements: List[VideoAnalysis]
+
+class TestResult(BaseModel):
+    progress: Dict[str, int] = Field("progress level from 0 to 100 for each subdomain")
+    youtube_search_query: str = Field("the best youtube query to find the best video for netx step")
+    focus_subdomain: str = Field("the subdomain the user should focus on")

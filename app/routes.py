@@ -1,7 +1,7 @@
 import threading
 from flask import render_template, request, current_app as app, redirect, url_for, flash
 from . import db
-from .models import Domain, SubDomain, Quiz, DomainStep, VideoSelection, Video
+from .models import Domain, SubDomain, Quiz, DomainStep, VideoSelection, Video, Answer
 from .services.gemini_service import generate_learning_graph, generate_youtube_search_query, select_best_video
 from .services.quiz_logic import generate_quiz
 from .services.user_logic import add_step
@@ -160,6 +160,39 @@ def view_quiz(domain_id, quiz_id):
 
 @app.route("/domain?<int:domain_id>/quiz/<int:quiz_id>/submit", methods=["POST"])
 def submit_quiz(domain_id, quiz_id):
+    quiz = Quiz.query.get_or_404(quiz_id)
+    questions = quiz.questions
+    for question in questions:
+        user_answer = request.form.get(f'question_{question.id}')
+        is_correct = user_answer == question.correct_answer
+        new_answer = Answer(
+            domain_id=domain_id,
+            quiz_id=quiz.id,
+            question_id=question.id,
+            answer=user_answer or "No answer",
+            success=is_correct
+        )
+        db.session.add(new_answer)
+    add_step(domain_id, 'QUIZ_RESULTS', quiz_id)
+    return redirect(url_for('view_quiz_results', domain_id=domain_id, quiz_id=quiz_id))
+
+@app.route("/domain?<int:domain_id>/quiz/<int:quiz_id>/results")
+def view_quiz_results(domain_id, quiz_id):
+    user_answers = Answer.query.filter_by(
+        quiz_id=quiz_id,
+        domain_id=domain_id
+    ).all()
+    if not user_answers:
+        return "No results found", 404
+
+    total = len(user_answers)
+    correct = sum(1 for a in user_answers if a.success)
+    score_percent = round((correct/total)*100)
+    return render_template('quiz_results.html',
+                           answers=user_answers,
+                           score=score_percent,
+                           correct=correct,
+                           total=total)
 
 
 @app.route("/domain?<int:domain_id>")
@@ -179,6 +212,8 @@ def resume(domain_id):
             pass  # TODO
         case 'QUIZ':
             redirect(url_for('view_quiz', quiz_id=step.resource_id, domain_id=domain_id))
+        case 'QUIZ_RESULTS':
+            redirect(url_for('view_quiz_results', quiz_id=step.resource_id, domain_id=domain_id))
         case _:
             flash(f"Soucis dans la base de donnée. l'etape {step.step_type} n'est pas definie", "danger")
             redirect(url_for("dashboard"))
