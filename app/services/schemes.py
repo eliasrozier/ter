@@ -26,7 +26,9 @@ class VideoAnalysis(BaseModel):
     reason: str = Field(description="courte description de pourquoi c'est la meilleure video")
 
 class VideoResult(BaseModel):
-    elements: List[VideoAnalysis]
+    video1: VideoAnalysis
+    video2: VideoAnalysis
+    video3: VideoAnalysis
 
 class TestResult(BaseModel):
     progress: Dict[str, int] = Field("progress level from 0 to 100 for each subdomain")

@@ -30,29 +30,51 @@ def make_video_selection(domain: Domain, search_query: str, focus_subdomain: Sub
 
     print("meilleures videos choisies")
 
-    bests_videos = []
-    for rec in recommandation.elements[:3]:
-        tmp = candidate_videos[rec.id]
-        vid = Video.query.get(rec.id)
-        if not vid:
-            vid = Video(
-                id=rec.id,
+    id1 = recommandation.video1.id
+    vid1 = Video.query.get(id1)
+    if not vid1:
+        tmp = candidate_videos[id1]
+        vid1 = Video(
+                id=id1,
                 title=tmp["title"],
                 thumbnail_url=tmp["thumbnail_url"],
                 channel=tmp["channel_title"]
             )
-            db.session.add(vid)
-            db.session.flush()
-        bests_videos.append({
-            "id": vid.id,
-            "reason": rec.reason
-        })
-    video_selection.video_1_id = bests_videos[0]["id"]
-    video_selection.video_1_reason = bests_videos[0]["reason"]
-    video_selection.video_2_id = bests_videos[1]["id"]
-    video_selection.video_2_reason = bests_videos[1]["reason"]
-    video_selection.video_3_id = bests_videos[2]["id"]
-    video_selection.video_3_reason = bests_videos[2]["reason"]
+        db.session.add(vid1)
+        db.session.flush()
+    video_selection.video_1_id = id1
+    video_selection.video_1_reason = recommandation.video1.reason
+
+    id2 = recommandation.video2.id
+    vid2 = Video.query.get(id2)
+    if not vid2:
+        tmp = candidate_videos[id2]
+        vid2 = Video(
+            id=id2,
+            title=tmp["title"],
+            thumbnail_url=tmp["thumbnail_url"],
+            channel=tmp["channel_title"]
+        )
+        db.session.add(vid2)
+        db.session.flush()
+    video_selection.video_2_id = id2
+    video_selection.video_2_reason = recommandation.video2.reason
+
+    id3 = recommandation.video3.id
+    vid3 = Video.query.get(id3)
+    if not vid3:
+        tmp = candidate_videos[id3]
+        vid3 = Video(
+            id=id3,
+            title=tmp["title"],
+            thumbnail_url=tmp["thumbnail_url"],
+            channel=tmp["channel_title"]
+        )
+        db.session.add(vid3)
+        db.session.flush()
+    video_selection.video_3_id = id3
+    video_selection.video_3_reason = recommandation.video3.reason
+
     video_selection.status = "READY"
     db.session.commit()
     print("j'ai fini ma selection")
